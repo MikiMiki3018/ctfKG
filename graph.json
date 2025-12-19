@@ -5,6 +5,7 @@
     {
       "id": "C01",
       "name": "Angr Project Initialization",
+      "label": "Concept 1",
       "definition": "Understanding how to initialize an Angr project and create an initial symbolic state for execution.",
       "difficulty": "beginner",
       "bloom_level": "Understand",
@@ -23,6 +24,7 @@
         {
           "id": "P01",
           "name": "Procedural steps: Angr Initialization",
+          "label": "Procedural Steps",
           "description": "Procedure for initializing an angr project and creating a symbolic state.",
           "difficulty": "beginner",
           "bloom_level": "Apply",
@@ -34,6 +36,7 @@
             {
               "id": "P01-step1",
               "name": "Step 1: Import angr and load binary",
+              "label": "Procedural Step 1",
               "code_snippet": "import angr\nproject = angr.Project('challenge_binary', auto_load_libs=False)",
               "hint": "Ensure angr is installed; disable auto_load_libs to save memory.",
               "children": [
@@ -50,6 +53,7 @@
         {
           "id": "A01",
           "name": "Assessment Guide: Angr Initialization",
+          "label": "Assessment 1",
           "linked_challenges": ["00_angr_find"],
           "objectives": [
             "Load binary in angr",
@@ -72,6 +76,7 @@
       "id": "C02",
       "name": "Find and Avoid Algorithm",
       "definition": "Technique for identifying exploration targets in disassembly.",
+      "label": "Concept 2",
       "difficulty": "intermediate",
       "bloom_level": "Apply",
       "prerequisites": ["C01"],
@@ -90,6 +95,7 @@
         {
           "id": "P02",
           "name": "Procedural Steps: Find/Avoid Algorithm",
+          "label": "Procedural Steps",
           "description": "Procedure for extracting disassembly targets and configuring angr exploration.",
           "difficulty": "intermediate",
           "bloom_level": "Apply",
@@ -110,23 +116,27 @@
             {
               "id": "P02-step1",
               "name": "Step 1: Search for success message in disassembly",
+              "label": "Procedural Step 1",
               "code_snippet": "objdump -d binary | grep 'puts'",
               "hint": "Look for string references near 'Success'.",
               "children": [
                 {
                   "id": "P02-step2",
                   "name": "Step 2: Find call site printing success message",
+                  "label": "Procedural Step 2",
                   "code_snippet": "grep -n 'puts' binary.asm",
                   "hint": "Locate printf or puts thunks.",
                   "children": [
                     {
                       "id": "P02-step3",
                       "name": "Step 3: Record relevant instruction addresses",
+                      "label": "Procedural Step 3",
                       "hint": "Mark addresses for find/avoid targets.",
                       "children": [
                         {
                           "id": "P02-step4",
                           "name": "Step 4: Configure find/avoid in explore()",
+                          "label": "Procedural Step 4",
                           "code_snippet": "simgr.explore(find=success_addr, avoid=fail_addr)",
                           "hint": "Ensure both parameters are defined."
                         }
@@ -141,6 +151,7 @@
         {
           "id": "A02",
           "name": "Assessment Guide: Find/Avoid Algorithm",
+          "label": "Assessment 2",
           "linked_challenges": ["02_angr_find_condition"],
           "objectives": [
             "Apply find/avoid correctly",
@@ -163,6 +174,7 @@
       "id": "C03",
       "name": "Symbolic Register Usage",
       "definition": "Understanding symbolic registers and their role in state mutation.",
+      "label": "Concept 3",
       "difficulty": "intermediate",
       "bloom_level": "Analyze",
       "prerequisites": ["C02"],
@@ -181,6 +193,7 @@
         {
           "id": "P03",
           "name": "Procedural Steps: Symbolic Registers",
+          "label": "Procedural Steps",
           "description": "Use symbolic registers to influence state transitions in angr.",
           "difficulty": "intermediate",
           "bloom_level": "Analyze",
@@ -195,12 +208,14 @@
             {
               "id": "P03-step1",
               "name": "Step 1: Access registers in state",
+              "label": "Procedural Step 1",
               "code_snippet": "state.regs.eax",
               "hint": "Use state.regs.<register> to access symbolic registers.",
               "children": [
                 {
                   "id": "P03-step2",
                   "name": "Step 2: Assign symbolic value",
+                  "label": "Procedural Step 2",
                   "code_snippet": "state.regs.eax = claripy.BVS('eax', 32)",
                   "hint": "Use claripy bitvector for symbolic representation."
                 }
@@ -211,6 +226,7 @@
         {
           "id": "A03",
           "name": "Assessment Guide: Symbolic Registers",
+          "label": "Assessment 3",
           "linked_challenges": ["03_angr_symbolic_registers"],
           "objectives": ["Manipulate and inspect symbolic registers"],
           "question_prompts": [
@@ -230,6 +246,7 @@
       "id": "C04",
       "name": "Symbolic Stack Injection",
       "definition": "Technique for inserting symbolic values directly into the program stack to emulate runtime input parameters within functions.",
+      "label": "Concept 4",
       "difficulty": "intermediate",
       "bloom_level": "Apply",
       "prerequisites": ["C02"],
@@ -251,6 +268,7 @@
         {
           "id": "P04",
           "name": "Procedural Steps: Stack Injection",
+          "label": "Procedural Steps",
           "description": "Manually configure the stack to inject symbolic bitvectors representing password bytes.",
           "difficulty": "intermediate",
           "bloom_level": "Apply",
@@ -268,24 +286,28 @@
             {
               "id": "P04-step1",
               "name": "Step 1: Set starting address and initialize state",
+              "label": "Procedural Step 1",
               "code_snippet": "initial_state = project.factory.blank_state(addr=start_address)",
               "hint": "Choose function start as symbolic execution entry.",
               "children": [
                 {
                   "id": "P04-step2",
                   "name": "Step 2: Create symbolic bitvectors for each password",
+                  "label": "Procedural Step 2",
                   "code_snippet": "password0 = claripy.BVS('password0', 32)",
                   "hint": "Use claripy.BVS for each password segment.",
                   "children": [
                     {
                       "id": "P04-step3",
                       "name": "Step 3: Align EBP and ESP registers",
+                      "label": "Procedural Step 3",
                       "code_snippet": "state.regs.ebp = state.regs.esp",
                       "hint": "EBP must match ESP before pushing symbolic data.",
                       "children": [
                         {
                           "id": "P04-step4",
                           "name": "Step 4: Push symbolic variables to emulate input",
+                          "label": "Procedural Step 4",
                           "code_snippet": "state.stack_push(password0)",
                           "hint": "Push symbolic passwords in correct order."
                         }
@@ -300,6 +322,7 @@
         {
           "id": "A04",
           "name": "Assessment Guide: Stack Injection",
+          "label": "Assessment",
           "linked_challenges": ["04_angr_symbolic_stack"],
           "objectives": [
             "Manually configure symbolic stack values",
@@ -322,6 +345,7 @@
       "id": "C05",
       "name": "Symbolic Memory Injection",
       "definition": "Method for writing symbolic values directly into global or heap memory to simulate complex input operations such as scanf.",
+      "label": "Concept 5",
       "difficulty": "intermediate",
       "bloom_level": "Apply",
       "prerequisites": ["C04"],
@@ -343,6 +367,7 @@
         {
           "id": "P05",
           "name": "Procedural Steps: Symbolic Memory Injection",
+          "label": "Procedural Steps",
           "description": "Inject symbolic values directly into program memory at known addresses used by scanf or input routines.",
           "difficulty": "intermediate",
           "bloom_level": "Apply",
@@ -360,12 +385,14 @@
             {
               "id": "P05-step1",
               "name": "Step 1: Identify global or heap addresses written by scanf",
+              "label": "Procedural Step 1",
               "code_snippet": "scanf('%u %u', &a, &b)",
               "hint": "Locate addresses where scanf stores input.",
               "children": [
                 {
                   "id": "P05-step2",
                   "name": "Step 2: Write symbolic values to those addresses",
+                  "label": "Procedural Step 2",
                   "code_snippet": "state.memory.store(0xaf84120, claripy.BVS('input_a', 32))",
                   "hint": "Use state.memory.store to place symbolic values."
                 }
@@ -376,6 +403,7 @@
         {
           "id": "A05",
           "name": "Assessment Guide: Symbolic Memory Injection",
+          "label": "Assessment 2",
           "linked_challenges": ["05_angr_symbolic_memory"],
           "objectives": [
             "Identify correct memory addresses for injection",
