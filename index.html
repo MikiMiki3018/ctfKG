@@ -8,80 +8,166 @@
   .link { stroke:#888; stroke-opacity:0.6; marker-end:url(#arrow); }
   .edge-label { fill:#ccc; font-size:10px; pointer-events:none; text-anchor:middle; }
   .node text { fill:white; font-size:12px; pointer-events:none; }
-  .tooltip {
-    position:absolute; background:#333; color:white; padding:10px;
-    border-radius:6px; font-size:12px; max-width:300px; z-index:10;
+
+  #meta-panel {
+  position: fixed;
+  top: 0;
+  right: -400px;
+  width: 400px;
+  height: 100%;
+  background: #2c2c2c;
+  color: white;
+  box-shadow: -4px 0 8px rgba(0,0,0,0.4);
+  transition: right 0.3s ease-in-out;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
   }
+  #meta-panel.open { right: 0; }
+  #meta-content {
+  flex: 1;                      /* takes all vertical space */
+  overflow-y: auto;             /* scrolls cleanly */
+  padding: 15px;}
+  #meta-panel h3 { margin-top: 0; color: #6FA8DC; }
+
+  #node-controls {
+    position: fixed;
+    bottom: 15px;
+    left: 15px;
+    background: rgba(40,40,40,0.9);
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    z-index: 30;
+  }
+  #node-controls button {
+    margin: 4px;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  #add-node { background: #93C47D; color: black; }
+  #delete-node { background: #E06666; color: white; }
+
   .edit-field {
     width:100%; background:#555; color:white; border:none;
-    margin:3px 0; font-size:12px;
+    margin:3px 0; font-size:12px; padding:5px;
   }
   .save-btn {
-    margin-top:8px; padding:5px 10px; background:#6FA8DC;
+    margin-top:8px; padding:6px 10px; background:#6FA8DC;
     border:none; border-radius:4px; color:black; font-weight:bold;
     cursor:pointer; width:100%;
+  }
+
+  .popup {
+    position: fixed;
+    bottom: 70px; /* just above the buttons */
+    left: 15px;
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 12px;
+    width: 260px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    color: white;
+    transform: translateY(150%);
+    opacity: 0;
+    transition: all 0.3s ease-in-out;
+    z-index: 50;
+  }
+  .popup.open {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  .popup label {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+  }
+  .popup input, .popup select {
+    width: 100%;
+    margin-top: 3px;
+    padding: 4px;
+    background: #555;
+    border: none;
+    color: white;
+    border-radius: 4px;
+  }
+  .popup button {
+    margin-top: 10px;
+    width: 100%;
+    padding: 6px;
+    border: none;
+    border-radius: 4px;
+    background: #6FA8DC;
+    color: black;
+    font-weight: bold;
+    cursor: pointer;
   }
 </style>
 </head>
 <body>
 <svg width="1300" height="900"></svg>
-<div id="tooltip" class="tooltip" style="display:none;"></div>
+
+<div id="meta-panel"></div>
+<div id="node-controls">
+  <button id="add-node">+ Add Node</button>
+  <button id="delete-node">– Delete Node</button>
+</div>
+
+<div id="add-popup" class="popup">
+  <h4>Add Node</h4>
+  <label>Node Type</label>
+  <select id="add-type">
+    <option value="C">Concept</option>
+    <option value="P">Procedure</option>
+    <option value="A">Assessment</option>
+  </select>
+
+  <label>From (source node ID)</label>
+  <input type="text" id="add-from" placeholder="e.g., C01">
+
+  <label>To (target node name)</label>
+  <input type="text" id="add-to" placeholder="e.g., New Concept">
+
+  <button id="confirm-add">Add</button>
+</div>
+
+<div id="delete-popup" class="popup">
+  <h4>Delete Node</h4>
+  <label>Node Type</label>
+  <select id="delete-type">
+    <option value="C">Concept</option>
+    <option value="P">Procedure</option>
+    <option value="A">Assessment</option>
+  </select>
+
+  <label>Node Name</label>
+  <input type="text" id="delete-name" placeholder="e.g., Symbolic Execution">
+
+  <button id="confirm-delete">Delete</button>
+</div>
+
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script>
-d3.json("graph.json").then(function(root) {
+d3.json("graph1.json").then(function(root) {
   const svg = d3.select("svg"), width=+svg.attr("width"), height=+svg.attr("height");
-  const tooltip=d3.select("#tooltip");
   const color=d3.scaleOrdinal().domain(["C","P","A"]).range(["#FFD966","#6FA8DC","#93C47D"]);
+  const metaPanel=document.getElementById("meta-panel");
 
   let nodes=[],links=[];
-
-  // === initial conceptual nodes ===
   nodes.push(root);
   if(root.children){
-    root.children.filter(d=>d.id&&d.id.startsWith("C")).forEach(c=>{
+    root.children.filter(d=>d.id && d.id.startsWith("C")).forEach(c=>{
       nodes.push(c);
+      // ✅ only connect conceptual nodes to root
       links.push({source:root.id,target:c.id,relation:"HAS_CONCEPT"});
     });
   }
 
-  // === add concept interconnections ===
-  function addConceptConnections(data){
-    if(!data.children)return;
-    data.children.filter(d=>d.id && d.id.startsWith("C")).forEach(c=>{
-      // Add concept-to-concept relations from JSON
-      if(c.connections){
-        c.connections.forEach(conn=>{
-          links.push({
-            source: c.id,
-            target: conn.to,
-            relation: conn.relation
-          });
-        });
-      }
-
-      // Add procedural and assessment connections with proper relation names
-      if(c.children){
-        c.children.forEach(child=>{
-          if(child.id.startsWith("P"))
-            links.push({source: c.id, target: child.id, relation: "PROCEDURAL_FOR"});
-          else if(child.id.startsWith("A"))
-            links.push({source: c.id, target: child.id, relation: "ASSESSES"});
-
-          // Add any nested procedural steps
-          if(child.children){
-            child.children.forEach(grand=>{
-              links.push({source: child.id, target: grand.id, relation: "HAS_STEP"});
-            });
-          }
-        });
-      }
-
-      // Recurse into deeper conceptual levels
-      addConceptConnections(c);
-    });
-  }
-
-  // === smoother physics ===
+  // === Simulation ===
   const simulation=d3.forceSimulation(nodes)
     .force("link",d3.forceLink(links).id(d=>d.id).distance(180).strength(1))
     .force("charge",d3.forceManyBody().strength(-600))
@@ -90,7 +176,6 @@ d3.json("graph.json").then(function(root) {
     .velocityDecay(0.8)
     .alphaDecay(0.02);
 
-  // === arrow marker ===
   svg.append("defs").append("marker")
     .attr("id","arrow").attr("viewBox","0 -5 10 10")
     .attr("refX",22).attr("refY",0)
@@ -105,16 +190,13 @@ d3.json("graph.json").then(function(root) {
   let edgeLabel=labelGroup.selectAll(".edge-label");
   let node=nodeGroup.selectAll(".node");
 
-  // === update ===
   function update(){
-    // links
     link=link.data(links,d=>`${d.source.id||d.source}-${d.target.id||d.target}`);
     link.exit().remove();
     const linkEnter=link.enter().append("line").attr("class","link").style("opacity",0);
     link=linkEnter.merge(link);
     linkEnter.transition().duration(1200).ease(d3.easeCubicOut).style("opacity",1);
 
-    // labels
     edgeLabel=edgeLabel.data(links,d=>`${d.source.id||d.source}-${d.target.id||d.target}`);
     edgeLabel.exit().remove();
     const labelEnter=edgeLabel.enter().append("text").attr("class","edge-label")
@@ -122,7 +204,6 @@ d3.json("graph.json").then(function(root) {
     edgeLabel=labelEnter.merge(edgeLabel);
     labelEnter.transition().duration(1200).delay(600).ease(d3.easeCubicOut).style("opacity",1);
 
-    // nodes
     node=node.data(nodes,d=>d.id);
     node.exit().remove();
     const nodeEnter=node.enter().append("g").attr("class","node")
@@ -132,14 +213,17 @@ d3.json("graph.json").then(function(root) {
       .attr("r",d=>d.id.startsWith("C")?25:d.id.startsWith("P")?15:10)
       .attr("fill",d=>color(d.id[0]))
       .style("opacity",0)
-      .on("click",expandNode)
-      .on("mouseover",showTooltip);
+      .on("click",function(event,d){
+        if(event.detail === 1){ 
+          setTimeout(()=>{ if(event.detail === 1) expandNode(event,d); },200);
+        }
+      })
+      .on("dblclick",function(event,d){ showMetadata(event,d); });
 
     nodeEnter.append("text").attr("x",8).attr("y",4)
       .text(d=>d.name||d.id).style("opacity",0);
 
     node=nodeEnter.merge(node);
-
     nodeEnter.select("circle").transition().duration(1500)
       .delay((d,i)=>i*150).ease(d3.easeCubicOut).style("opacity",1);
     nodeEnter.select("text").transition().duration(1500)
@@ -150,7 +234,6 @@ d3.json("graph.json").then(function(root) {
     simulation.alpha(0.3).restart();
   }
 
-  // === expand node ===
   function expandNode(event,d){
     event.stopPropagation();
     if(!d.children || d.expanded) return;
@@ -160,62 +243,59 @@ d3.json("graph.json").then(function(root) {
     newNodes.forEach(child => { child.x = d.x; child.y = d.y; });
     nodes.push(...newNodes);
 
-    // Use meaningful relationships instead of generic HAS_CHILD
     d.children.forEach(child => {
       let relType = "HAS_CHILD";
       if(child.id.startsWith("P")) relType = "PROCEDURAL_FOR";
       else if(child.id.startsWith("A")) relType = "ASSESSES";
       else if(child.id.startsWith("C")) relType = "HAS_CONCEPT";
-      links.push({source: d.id, target: child.id, relation: relType});
+      links.push({source:d.id,target:child.id,relation:relType});
     });
-
     update();
   }
 
-  // === tooltip with save ===
-  function showTooltip(event,d){
-    let html=`<b>${d.name||d.id}</b><br>`;
-    for(const [key,val] of Object.entries(d)){
-      if(["id","name","children","x","y","vx","vy","fx","fy","index","expanded"].includes(key))continue;
-      if(Array.isArray(val)&&val.length&&typeof val[0]==="object"){
-        html+=`<div style='margin-top:5px'><b>${key}:</b><br>`;
-        val.forEach((obj,i)=>{
-          Object.entries(obj).forEach(([subkey,subval])=>{
-            html+=`<input class='edit-field' data-key='${key}.${i}.${subkey}' value="${subval}"><br>`;
-          });
-        });
-        html+=`</div>`;
-      }else if(Array.isArray(val)){
-        html+=`${key}: <input class='edit-field' data-key='${key}' value="${val.join(", ")}"><br>`;
-      }else{
-        html+=`${key}: <input class='edit-field' data-key='${key}' value="${val}"><br>`;
-      }
-    }
-    html+=`<button class='save-btn'>Save Changes</button>`;
-    tooltip.html(html)
-      .style("left",(event.pageX+15)+"px")
-      .style("top",(event.pageY-15)+"px")
-      .style("display","block");
+  // === Metadata side panel (persistent in memory) ===
+  function showMetadata(event,d){
+    event.stopPropagation();
+    metaPanel.innerHTML = `
+  <div id="meta-content">
+    <h3>${d.name||d.id}</h3>
+  </div>
+  <button class='save-btn'>Save Changes</button>
+`;
+const metaContent = document.getElementById("meta-content");
 
-    tooltip.select(".save-btn").on("click",()=>{
-      tooltip.selectAll(".edit-field").each(function(){
-        const input=d3.select(this);
-        const path=input.attr("data-key").split(".");
+for (const [key, val] of Object.entries(d)) {
+  if (["id","name","children","x","y","vx","vy","fx","fy","index","expanded"].includes(key)) continue;
+  if (Array.isArray(val) && val.length && typeof val[0] === "object") {
+    metaContent.innerHTML += `<b>${key}:</b><br>`;
+    val.forEach((obj,i)=>{
+      Object.entries(obj).forEach(([subkey,subval])=>{
+        metaContent.innerHTML += `<input class='edit-field' data-key='${key}.${i}.${subkey}' value="${subval}"><br>`;
+      });
+    });
+  } else if (Array.isArray(val)) {
+    metaContent.innerHTML += `<b>${key}:</b> <input class='edit-field' data-key='${key}' value="${val.join(", ")}"><br>`;
+  } else {
+    metaContent.innerHTML += `<b>${key}:</b> <input class='edit-field' data-key='${key}' value="${val}"><br>`;
+  }
+}
+    metaPanel.classList.add("open");
+
+    metaPanel.querySelector(".save-btn").onclick = ()=>{
+      metaPanel.querySelectorAll(".edit-field").forEach(input=>{
+        const path=input.getAttribute("data-key").split(".");
         let ref=d;
         for(let i=0;i<path.length-1;i++){
-          if(Array.isArray(ref))ref=ref[parseInt(path[i])];
-          else ref=ref[path[i]];
+          ref = ref[path[i]];
         }
-        const lastKey=path[path.length-1];
-        ref[lastKey]=input.property("value");
+        ref[path[path.length-1]]=input.value;
       });
-      alert("Changes saved.");
-    });
+      alert("Changes saved in memory (will persist until page reload).");
+    };
 
-    // click outside closes it
-    d3.select("body").on("click",function(e){
-      if(!tooltip.node().contains(e.target))tooltip.style("display","none");
-    },true);
+    document.body.onclick = (e)=>{
+      if(!metaPanel.contains(e.target)) metaPanel.classList.remove("open");
+    };
   }
 
   simulation.on("tick",()=>{
@@ -237,6 +317,48 @@ d3.json("graph.json").then(function(root) {
     if(!event.active)simulation.alphaTarget(0);
     event.subject.fx=null; event.subject.fy=null;
   }
+
+  const addPopup = document.getElementById("add-popup");
+const deletePopup = document.getElementById("delete-popup");
+
+// Toggle popups
+document.getElementById("add-node").onclick = (e) => {
+  e.stopPropagation();
+  deletePopup.classList.remove("open");
+  addPopup.classList.toggle("open");
+};
+document.getElementById("delete-node").onclick = (e) => {
+  e.stopPropagation();
+  addPopup.classList.remove("open");
+  deletePopup.classList.toggle("open");
+};
+
+// Close popup when clicking outside
+document.addEventListener("click", (e) => {
+  if (!addPopup.contains(e.target) && !deletePopup.contains(e.target) &&
+      !e.target.matches("#add-node") && !e.target.matches("#delete-node")) {
+    addPopup.classList.remove("open");
+    deletePopup.classList.remove("open");
+  }
+});
+
+// Placeholder behavior for now
+document.getElementById("confirm-add").onclick = () => {
+  const type = document.getElementById("add-type").value;
+  const from = document.getElementById("add-from").value.trim();
+  const to = document.getElementById("add-to").value.trim();
+  if (!from || !to) return alert("Please fill all fields.");
+  alert(`(Simulated) Added new ${type} node "${to}" from "${from}".`);
+  addPopup.classList.remove("open");
+};
+
+document.getElementById("confirm-delete").onclick = () => {
+  const type = document.getElementById("delete-type").value;
+  const name = document.getElementById("delete-name").value.trim();
+  if (!name) return alert("Please enter a node name.");
+  alert(`(Simulated) Deleted ${type} node "${name}".`);
+  deletePopup.classList.remove("open");
+};
 
   update();
 });
